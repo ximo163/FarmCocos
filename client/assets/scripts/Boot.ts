@@ -1,6 +1,6 @@
 import {
     Node, director, Director, Canvas, Camera, Layers, UITransform, Graphics, Color, view,
-    ResolutionPolicy, resources, SpriteFrame, Sprite,
+    ResolutionPolicy, resources, SpriteFrame, Sprite, Texture2D,
 } from 'cc';
 import { CORE_API_VERSION } from './shared/core/version';
 
@@ -61,11 +61,16 @@ function bootstrap() {
     g.rect(-150, -150, 300, 300);
     g.fill();
 
-    resources.load('probe/spriteFrame', SpriteFrame, (err, frame) => {
-        if (err || !frame) {
-            hook.probe = 'failed: ' + (err ? err.message : 'empty');
+    // 沒有 .meta 的圖片在構建時按默認類型導入成紋理（texture），不是精靈幀（spriteFrame）。
+    // 所以按 '<路徑>/texture' 加載 Texture2D，再在代碼裡包成 SpriteFrame。
+    resources.load('probe/texture', Texture2D, (err, texture) => {
+        if (err || !texture) {
+            const known = resources.getDirWithPath('').map((i) => i.path).join(',');
+            hook.probe = 'failed: ' + (err ? err.message : 'empty') + ' | resources 裡有：' + known;
             return;
         }
+        const frame = new SpriteFrame();
+        frame.texture = texture;
         const n = new Node('Probe');
         n.layer = UI;
         root.addChild(n);

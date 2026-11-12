@@ -78,7 +78,9 @@
    用代碼建立 Canvas 和相機。所有界面在運行時由代碼按 `layouts/*.json` 創建節點，不依賴 prefab
    或其他場景。不要寫 `.meta`、`.prefab`、`.scene`（受保護）：新加的腳本和資源不用配 `.meta`，
    GitHub 上構建時編輯器會自動生成。圖片、聲音放在 `client/assets/resources/` 下，代碼用
-   `resources.load` 按路徑加載。
+   `resources.load` 按路徑加載。沒有 `.meta` 的圖片默認導入成紋理而不是精靈幀：用
+   `resources.load('<路徑>/texture', Texture2D, ...)` 加載，再 `new SpriteFrame()` 並設置它的
+   `texture`（`Boot.ts` 裡有例子）。按 `'<路徑>/spriteFrame'` 加載會找不到。
 10. **client 只放薄膠水**：`client/assets/scripts/` 在容器裡編譯不了、測不了。有判斷的邏輯
     （手勢識別、佈局計算、播放器、狀態到畫面的映射）放在 `packages/` 下的純 TS 包裡並寫測試，
     client 腳本只負責把它們接到 Cocos 的節點和事件上。

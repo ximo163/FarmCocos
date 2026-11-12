@@ -46,7 +46,11 @@ await site.close();
 if (hook) {
   if (typeof hook.coreApi !== "number") failures.push("__farm.coreApi 不是數字：client 沒有接上 packages/core 的共用代碼");
   if (hook.probe !== "ok") failures.push("resources/probe.png 沒有加載成功（" + hook.probe + "）：沒提交 .meta 的資源在構建時沒有被導入");
-  const center = pixel(readPng(shot), W / 2, H / 2);
+  const png = readPng(shot);
+  const center = pixel(png, W / 2, H / 2);
+  // 探針圖片是純色 (230,60,40)，Boot.ts 把它放在左上角：確認圖片真的畫出來了，而不只是加載成功
+  const corner = pixel(png, 60, 60);
+  if (hook.probe === "ok" && !near(corner, [230, 60, 40], 12)) failures.push(`左上角的顏色是 ${corner}，應該是探針圖片的 230,60,40：圖片加載了但沒有畫出來`);
   if (!near(center, MARKER, 12)) failures.push(`屏幕正中的顏色是 ${center}，應該是啟動標記 ${MARKER}：畫面沒有渲染出來`);
 }
 if (errors.length) failures.push("頁面報錯：\n    " + errors.slice(0, 10).join("\n    "));
