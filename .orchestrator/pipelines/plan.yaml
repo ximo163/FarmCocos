@@ -1,5 +1,5 @@
 # pipeline:plan —— 大需求先拆成子 issue。triage 認為太大的任務也會被轉到這裡。
-# confirm: true：計劃先貼在 issue 上，人回覆 /agent approve 才創建子 issue。
+# 無人值守：計劃直接創建子 issue 並打上 agent:ready，watch 按依賴順序逐個啟動。
 version: 1
 base: main
 agent_dockerfile: agent.Dockerfile
@@ -13,4 +13,4 @@ stages:
     max_issues: 8
     ready_label: agent:ready
     allowed_labels: []
-    confirm: true
+    confirm: false

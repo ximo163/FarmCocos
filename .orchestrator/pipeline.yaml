@@ -1,16 +1,17 @@
 # FarmCocos 默認流水線：移植一個模塊，先寫測試再實現。
 #
-#   write-tests (strong) -> review-tests (judge) -> implement (cheap) -> review-impl (judge)
+#   write-tests (strong) -> review-tests (judge) -> implement (cheap) -> review-impl (judge) -> merge
 #
 # 寫不出失敗測試的任務走別的流水線，打對應標籤：
 #   pipeline:spec   從 legacy/ 提取規格到 spec/
 #   pipeline:chore  腳手架、依賴、配置
 #   pipeline:plan   大需求先拆分
-# 沒有 merge 階段：PR 全部由人合併，跑順之後再考慮自動合併。
+# 全程無人值守：implement 開 PR 後等 GitHub 上的客戶端構建和冒煙測試（client-web、client-smoke），
+# 審核通過後自動合併。人只在完成度達到 95% 之後驗收。
 version: 1
 base: main
 agent_dockerfile: agent.Dockerfile
-required_checks: []    # 沒有 GitHub CI，本地 verify 就是驗證門
+required_checks: [client-web, client-smoke]   # .github/workflows/client.yml 的 job
 
 protected:
   - legacy/            # 原版部署目錄（原樣）、manifest、反編譯結果、行為軌跡：只讀
@@ -100,7 +101,7 @@ stages:
     append_only: ["**/*.test.ts"]
     protected: ["**/fixtures/"]
     verify: [typecheck, purity, test]
-    ci: local
+    ci: true    # 開 PR 並等 required_checks：客戶端要在 GitHub 的 Windows 機器上才能構建
     attempts: 4
     escalate: { after: 2, models: [strong, strong2] }
     on_exhausted: write-tests
@@ -114,3 +115,24 @@ stages:
     on_reject_tests: write-tests
     max_rejects: 5
     escalate: { after: 3, models: [judge2] }
+
+  # 審核通過、檢查全過後自動合併。超出範圍的 PR 留著並在評論裡說明原因，不會強行合併。
+  - id: merge
+    kind: merge
+    method: squash
+    exclude_from_limits: ["*.test.ts", "**/fixtures/", "package-lock.json"]
+    max_changed_lines: 1500
+    max_changed_files: 40
+    require_distinct_reviewer: true
+    allowed_paths:
+      - packages/
+      - server/
+      - tools/
+      - client/assets/scripts/
+      - client/assets/resources/
+      - timelines/
+      - layouts/
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - vitest.config.ts

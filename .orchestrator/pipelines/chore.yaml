@@ -2,7 +2,7 @@
 version: 1
 base: main
 agent_dockerfile: agent.Dockerfile
-required_checks: []
+required_checks: [client-web, client-smoke]
 protected:
   - legacy/
   - spec/
@@ -39,7 +39,7 @@ stages:
     max_turns: 160
     timeout: 60m
     verify: [typecheck, purity, test]
-    ci: local
+    ci: true
     attempts: 4
     escalate: { after: 2, models: [strong2] }
   - id: review
@@ -50,3 +50,19 @@ stages:
     on_reject: implement
     max_rejects: 4
     escalate: { after: 2, models: [judge2] }
+  - id: merge
+    kind: merge
+    method: squash
+    exclude_from_limits: ["package-lock.json"]
+    max_changed_lines: 1000
+    max_changed_files: 30
+    require_distinct_reviewer: true
+    allowed_paths:
+      - packages/
+      - server/
+      - tools/
+      - client/assets/scripts/
+      - package.json
+      - package-lock.json
+      - tsconfig.json
+      - vitest.config.ts

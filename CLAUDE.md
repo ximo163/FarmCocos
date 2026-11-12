@@ -13,7 +13,7 @@
 | `legacy/manifest.json` | 部署目錄的說明：網站根目錄、PHP 入口、swf、配置、資源、建表 SQL、運行環境版本 | 人，只讀 |
 | `legacy/decompiled/<路徑>/` | FFDec 從 swf 導出的內容；`<路徑>` 對應 swf 在 `legacy/deploy/` 裡的位置，如 `deploy/www/game/main.swf` → `decompiled/www/game/main/`。裡面有 `scripts/`（ActionScript）、`sprites/` 和 `frames/`（逐幀 PNG）、圖片和聲音、`swf.xml`（全部標籤：幀標籤、PlaceObject）、`header.txt`（swf 版本、幀率、舞台尺寸）、`xfl/`（重建的 XFL，可能不完整） | 由 `scripts/decompile-legacy.sh` 生成，只讀 |
 | `legacy/traces/` | 錄下的原版行為軌跡（請求和響應、事件序列） | 人，只讀 |
-| `spec/` | 從 legacy 提取的規格：協議、作物數據、交互映射 `interaction-map.json`、偏差清單 `deviations.json` | `pipeline:spec` 提取、人審核；其他流水線只讀 |
+| `spec/` | 從 legacy 提取的規格：協議、作物數據、交互映射 `interaction-map.json`、偏差清單 `deviations.json` | `pipeline:spec` 提取、另一個模型審核後自動合併；其他流水線只讀 |
 | `checks/`、`scripts/`、`ci/` | 校驗、反編譯、同步共用代碼、構建的腳本 | 人，只讀 |
 | `harness/` | 自動驗收：在無界面瀏覽器裡運行新客戶端和原版（Ruffle），截圖、錄請求、比對 | 人，只讀 |
 | `.github/workflows/` | 在 GitHub 上構建客戶端（網頁版、APK）並跑自動驗收 | 人，只讀 |

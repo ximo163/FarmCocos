@@ -40,7 +40,7 @@ jobs:
 
       - name: Cache Cocos Creator
         id: cache-cc
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: C:\cocos
           key: cocos-creator-win-${{ env.CC_VERSION }}
@@ -51,6 +51,14 @@ jobs:
         run: |
           curl.exe -L --retry 3 -o "$env:RUNNER_TEMP\cc.zip" $env:CC_URL
           7z x "$env:RUNNER_TEMP\cc.zip" -oC:\cocos -y | Out-Null
+
+      # 下載完立刻存緩存：後面的構建失敗時，下次也不用重新下載
+      - name: Save Cocos Creator cache
+        if: steps.cache-cc.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: C:\cocos
+          key: cocos-creator-win-${{ env.CC_VERSION }}
 
       - name: Locate editor
         shell: pwsh
@@ -136,7 +144,7 @@ jobs:
 
       - name: Cache Cocos Creator
         id: cache-cc
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: C:\cocos
           key: cocos-creator-win-${{ env.CC_VERSION }}

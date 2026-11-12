@@ -1,5 +1,5 @@
 # pipeline:spec —— 從 legacy/ 提取規格到 spec/（協議、作物數據、時間軸清單、交互清單）。
-# 只能改 spec/，結果由人審核後合併；合併後的 spec/ 在其他流水線裡是只讀的驗收標準。
+# 只能改 spec/，由另一個模型審核後自動合併；合併後的 spec/ 在其他流水線裡是只讀的驗收標準。
 version: 1
 base: main
 agent_dockerfile: agent.Dockerfile
@@ -31,3 +31,11 @@ stages:
     on_reject: extract
     max_rejects: 4
     escalate: { after: 2, models: [judge2] }
+  # 規格由另一個模型審核後自動合併。標成 unknown 的條目和待最終確認的默認決定留到 95% 驗收時由人看。
+  - id: merge
+    kind: merge
+    method: squash
+    max_changed_lines: 4000
+    max_changed_files: 30
+    require_distinct_reviewer: true
+    allowed_paths: ["spec/"]
