@@ -11,15 +11,17 @@
 |---|---|---|
 | `legacy/deploy/` | 原版部署目錄，**按真實部署結構原樣放置**：swf、PHP 後端（規則的權威來源）、xml、png、gif 混在其中 | 人，只讀 |
 | `legacy/manifest.json` | 部署目錄的說明：網站根目錄、PHP 入口、swf、配置、資源、建表 SQL、運行環境版本 | 人，只讀 |
-| `legacy/decompiled/<路徑>/` | FFDec 從 swf 導出的 ActionScript、逐幀圖、`swf.xml`（時間軸）；`<路徑>` 對應 swf 在 `legacy/deploy/` 裡的位置，如 `deploy/www/game/main.swf` → `decompiled/www/game/main/` | 人用 `scripts/legacy/decompile.sh` 生成，只讀 |
+| `legacy/decompiled/<路徑>/` | FFDec 從 swf 導出的內容；`<路徑>` 對應 swf 在 `legacy/deploy/` 裡的位置，如 `deploy/www/game/main.swf` → `decompiled/www/game/main/`。裡面有 `scripts/`（ActionScript）、`sprites/` 和 `frames/`（逐幀 PNG）、圖片和聲音、`swf.xml`（全部標籤：幀標籤、PlaceObject）、`header.txt`（swf 版本、幀率、舞台尺寸）、`xfl/`（重建的 XFL，可能不完整） | 人用 `scripts/legacy/decompile.sh` 生成，只讀 |
 | `legacy/traces/` | 錄下的原版行為軌跡（請求和響應、事件序列） | 人，只讀 |
 | `spec/` | 從 legacy 提取的規格：協議、作物數據、交互映射 `interaction-map.json`、偏差清單 `deviations.json` | `pipeline:spec` 提取、人審核；其他流水線只讀 |
 | `checks/` | 校驗腳本 | 人，只讀 |
 | `packages/core/` | 純 TS 遊戲邏輯，客戶端和服務端共用 | agent |
+| `packages/<其他>/` | 其他能在容器裡測試的純 TS 包（時間軸播放器、手勢識別、佈局計算等表現層邏輯） | agent |
 | `server/` | Node 服務端：鑒權、存檔、運行 core、拉取外部數據 | agent |
-| `client/` | Cocos Creator 工程（由編輯器創建）；agent 只寫 `client/assets/scripts/` 下的 TS | agent（腳本）、人（場景、prefab、資源導入） |
+| `client/` | Cocos Creator 工程（由編輯器創建）；agent 只寫 `client/assets/scripts/` 下的 TS，而且只放薄膠水 | agent（腳本）、人（一個啟動場景、資源導入） |
 | `tools/` | 轉換和比對工具（swf.xml → 時間軸 JSON、軌跡回放等） | agent |
-| `timelines/` | 時間軸數據（由 tools 生成） | 工具生成 |
+| `timelines/` | 時間軸數據：幀率、幀數、幀標籤、每幀事件、逐幀圖的引用（由 tools 從 `swf.xml` 生成） | 工具生成 |
+| `layouts/` | 界面佈局數據：每個界面的子元素、位置、層級（由 tools 從 `swf.xml` 的 PlaceObject 生成） | 工具生成 |
 
 ## 讀原版之前：先讀 legacy/manifest.json
 
@@ -45,6 +47,10 @@
   （如 `// legacy/deploy/www/api/crop.php: harvest() 第 120 行`）。
 - 規格裡找不到、legacy 裡也推不出來的行為，不要自己設計：最後一行輸出
   `BLOCKED: <缺什麼規格，在哪個文件遇到>`。
+- 原版腳本可能是 AS2 也可能是 AS3，以 `header.txt` 和腳本的實際寫法為準。AS3 的交互是
+  `addEventListener(MouseEvent.*)`；AS2 是 `onRelease`、`onRollOver`、`on(release)` 這類處理函數。
+- 原版沒有的東西（`GameService`、輸入適配器、時間軸播放器、佈局生成、各種工具）以 issue 的描述為需求，
+  測試的出處寫 `// issue #<編號>`。
 
 ## 架構約定（不要繞過）
 
@@ -61,10 +67,18 @@
    經驗和等級只來自玩家操作，**不能依賴任何外部行情數據**。
 6. **作物和內容用數據配置**：作物定義（`CropDef`）放在數據裡，外觀引用時間軸名，不寫死在代碼中。
 7. **存檔帶版本號**，讀舊版本的存檔要能遷移。
-8. **時間軸的幀語義**：原版按固定幀率推進。播放器用固定步長累加器
+8. **畫面用逐幀圖，時間軸只管邏輯**：動畫一律播放 FFDec 導出的逐幀 PNG（`sprites/`），
+   不要還原補間、變換矩陣或嵌套剪輯，那等於重寫一個 Flash 渲染器。`timelines/*.json` 只記
+   幀率、幀數、幀標籤、每幀事件和逐幀圖的引用。播放器用固定步長累加器
    （`acc += dt; while (acc >= 1/fps) step()`）保留「第 N 幀發生什麼」，不要改成秒或 tween。
-9. **Cocos 資源**：不要手寫 `.meta`、`.prefab`、`.scene`（受保護，由編輯器生成）。
-   代碼按 `resources` 路徑引用資源。
+9. **界面由代碼按佈局數據生成**：`client/` 裡只有人建的一個啟動場景。所有界面在運行時由代碼按
+   `layouts/*.json` 創建節點，不依賴 prefab 或其他場景。不要手寫 `.meta`、`.prefab`、`.scene`
+   （受保護，由編輯器生成）；代碼按 `resources` 路徑引用資源。
+10. **client 只放薄膠水**：`client/assets/scripts/` 在容器裡編譯不了、測不了。有判斷的邏輯
+    （手勢識別、佈局計算、播放器、狀態到畫面的映射）放在 `packages/` 下的純 TS 包裡並寫測試，
+    client 腳本只負責把它們接到 Cocos 的節點和事件上。
+11. **client 怎麼引用 `packages/`** 由人確定後寫在這裡（目前未定）。在確定之前，需要 client
+    引用 `packages/` 的任務輸出 `BLOCKED: client 引用 packages 的方式未定`，不要把代碼複製進 client。
 
 ## 隱私和密鑰
 

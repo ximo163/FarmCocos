@@ -8,6 +8,7 @@ protected:
   - spec/
   - checks/
   - scripts/legacy/
+  - deploy/
   - .github/
   - "*.md"
   - "**/*.meta"

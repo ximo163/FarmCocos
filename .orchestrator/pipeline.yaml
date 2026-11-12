@@ -17,6 +17,7 @@ protected:
   - spec/              # 規格（交互映射、偏差清單、協議）：由 pipeline:spec 提取、人審核
   - checks/            # 校驗腳本：人寫的驗收標準
   - scripts/legacy/
+  - deploy/            # 新服務端的部署配置（根目錄的 deploy/）：由人管
   - .github/
   - "*.md"             # 這個倉庫不寫給人看的文檔，計劃和文檔在 FarmCocos-docs
   - "**/*.meta"        # Cocos 編輯器生成

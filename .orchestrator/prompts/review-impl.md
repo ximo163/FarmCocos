@@ -7,6 +7,7 @@
 - 違反架構約定：core 裡出現 I/O、真實時間、隨機數或 `cc`；原始輸入事件進了 core；繞過 `GrowthDriver` 直接決定作物狀態；客戶端繞過 `GameService`；經驗或等級依賴了行情數據。
 - 觸屏交互不在 `spec/interaction-map.json` 裡，或和映射表的規定不一致。
 - 手寫了 `.meta`、`.prefab`、`.scene`，或在 client/ 裡改了腳本以外的東西。
+- 有判斷的邏輯寫在了 `client/assets/scripts/` 裡而不是 `packages/` 下可測的包裡；或者去還原補間、變換矩陣，而不是播放逐幀圖。
 - 密鑰、真實賬號或真實持倉出現在代碼、測試、日誌或配置裡。
 - 新增依賴沒有充分理由。
 - 有無關改動、死代碼、調試殘留，或新增了給人看的文檔（README、*.md）。

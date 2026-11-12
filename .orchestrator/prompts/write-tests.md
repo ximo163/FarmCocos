@@ -1,6 +1,6 @@
 只寫這個任務的測試，不做實現。先讀 CLAUDE.md。
 
-- 需求來自原版：期望值從 `legacy/traces/`、`legacy/deploy/`（先看 `legacy/manifest.json` 找到 PHP 和 xml 在哪）、`legacy/decompiled/` 和 `spec/` 推出來，不要憑感覺猜。每個期望值上方用註釋寫明出處（文件和位置）。
+- 需求來自原版：期望值從 `legacy/traces/`、`legacy/deploy/`（先看 `legacy/manifest.json` 找到 PHP 和 xml 在哪）、`legacy/decompiled/` 和 `spec/` 推出來，不要憑感覺猜。每個期望值上方用註釋寫明出處（文件和位置）。原版沒有的東西（接口、播放器、適配器、工具）以 issue 的描述為需求，出處寫 `// issue #<編號>`。
 - 只讀需要的部分：先 `rg -n` 找名字，再讀前後幾十行。legacy 裡的反編譯代碼和 xml 很大，整個文件讀進來會很快耗光輪數。
 - 測試放在被測代碼旁邊：`packages/core/test/`、`server/test/`、`tools/**/*.test.ts`。表驅動，測試名說明行為。
 - 涉及時間的邏輯，用注入的 `Clock` 控制時間；涉及隨機的，用注入的 `Rng`。測試不能 sleep、不能聯網、不能依賴真實時間。
