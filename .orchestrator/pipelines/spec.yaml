@@ -4,7 +4,7 @@ version: 1
 base: main
 agent_dockerfile: agent.Dockerfile
 required_checks: []
-protected: [legacy/, checks/, scripts/legacy/, deploy/, .github/, "*.md"]
+protected: [legacy/, checks/, scripts/, harness/, ci/, deploy/, .github/, "*.md"]
 cache: { npm_config_cache: npm }
 suites:
   spec: { cmd: "bash checks/spec-valid.sh", timeout: 2m }

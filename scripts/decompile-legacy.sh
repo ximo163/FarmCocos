@@ -11,7 +11,7 @@
 #   xfl/                                                   FFDec 重建的 XFL（DOMDocument.xml、LIBRARY/*.xml）
 #
 # 需要 Java 和 JPEXS FFDec：https://github.com/jindrapetrik/jpexs-decompiler/releases
-# 用法：FFDEC_JAR=/path/to/ffdec.jar scripts/legacy/decompile.sh
+# 用法：FFDEC_JAR=/path/to/ffdec.jar scripts/decompile-legacy.sh
 # 參數對照的是 FFDec 源碼裡的 CommandLineArgumentParser；舊版本可能不支持 xfl、button、
 # symbolclass 這幾項，所以它們單獨導出，失敗只提示、不中斷。
 set -euo pipefail

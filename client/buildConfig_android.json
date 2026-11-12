@@ -1,0 +1,47 @@
+{
+  "name": "FarmCocos",
+  "buildPath": "project://build",
+  "debug": false,
+  "md5Cache": false,
+  "sourceMaps": false,
+  "startScene": "5d49be47-0255-45c9-afb3-8a1f52280821",
+  "scenes": [
+    {
+      "url": "db://assets/scene/main.scene",
+      "uuid": "5d49be47-0255-45c9-afb3-8a1f52280821"
+    }
+  ],
+  "platform": "android",
+  "outputName": "android",
+  "packages": {
+    "android": {
+      "packageName": "com.ximo.farmcocos",
+      "orientation": {
+        "portrait": false,
+        "upsideDown": false,
+        "landscapeLeft": true,
+        "landscapeRight": true
+      },
+      "apiLevel": 34,
+      "appABIs": [
+        "arm64-v8a"
+      ],
+      "useDebugKeystore": true,
+      "appBundle": false,
+      "androidInstant": false,
+      "renderBackEnd": {
+        "vulkan": false,
+        "gles3": true,
+        "gles2": true
+      },
+      "swappy": false,
+      "resizeableActivity": true,
+      "maxAspectRatio": "2.4"
+    },
+    "native": {
+      "encrypted": false,
+      "compressZip": false,
+      "JobSystem": "none"
+    }
+  }
+}

@@ -7,7 +7,9 @@ protected:
   - legacy/
   - spec/
   - checks/
-  - scripts/legacy/
+  - scripts/
+  - harness/
+  - ci/
   - deploy/
   - .github/
   - "*.md"
@@ -16,7 +18,13 @@ protected:
   - "**/*.scene"
   - client/settings/
   - client/types/
+  - client/assets/scene/
+  - client/*.json
 cache: { npm_config_cache: npm }
+generated:
+  paths: ["client/assets/scripts/shared/"]
+  how: "改 packages/<包>/src 下的源文件，然後運行 node scripts/sync-shared.mjs"
+  cmd: "node scripts/sync-shared.mjs"
 suites:
   typecheck: { cmd: "npm ci --no-audit --no-fund --silent && npm run -s typecheck", timeout: 10m }
   test: { cmd: "npm ci --no-audit --no-fund --silent && npm run -s test", timeout: 15m }

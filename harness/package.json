@@ -1,0 +1,12 @@
+{
+  "name": "farmcocos-harness",
+  "private": true,
+  "type": "module",
+  "description": "自動化驗收：在無界面瀏覽器裡運行新客戶端和原版（Ruffle），截圖、錄請求、比對",
+  "dependencies": {
+    "@ruffle-rs/ruffle": "^0.7.1",
+    "pixelmatch": "^6.0.0",
+    "playwright": "^1.65.0",
+    "pngjs": "^7.0.0"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "name": "FarmCocos",
+  "buildPath": "project://build",
+  "debug": false,
+  "md5Cache": false,
+  "sourceMaps": false,
+  "startScene": "5d49be47-0255-45c9-afb3-8a1f52280821",
+  "scenes": [
+    {
+      "url": "db://assets/scene/main.scene",
+      "uuid": "5d49be47-0255-45c9-afb3-8a1f52280821"
+    }
+  ],
+  "platform": "web-mobile",
+  "outputName": "web-mobile",
+  "packages": {
+    "web-mobile": {
+      "orientation": "landscape",
+      "embedWebDebugger": false
+    }
+  }
+}

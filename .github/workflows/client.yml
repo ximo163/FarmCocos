@@ -1,0 +1,206 @@
+# 客戶端的構建和自動驗收，全部在 GitHub 上完成，不需要任何人裝 Cocos Creator。
+#
+#   client-web     Windows：下載 Cocos Creator，命令行構建網頁版（做法來自 ximo163/cocos-demo）
+#   client-smoke   Linux：在無界面瀏覽器裡啟動網頁版，確認能渲染、共用代碼接上了、資源能加載
+#   client-android Windows：構建 APK。只在 main 上和手動觸發時跑（要幾十分鐘）
+#
+# client-web 和 client-smoke 是流水線等待的檢查（pipeline.yaml 的 required_checks）。
+name: client
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: client-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CC_VERSION: 3.8.6
+  CC_URL: https://download.cocos.com/CocosCreator/v3.8.6/CocosCreator-v3.8.6-win-032501.zip
+  NDK_VERSION: 23.2.8568313
+
+jobs:
+  client-web:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: 共用代碼和 packages/ 一致
+        run: node scripts/sync-shared.mjs --check
+
+      - name: Cache Cocos Creator
+        id: cache-cc
+        uses: actions/cache@v4
+        with:
+          path: C:\cocos
+          key: cocos-creator-win-${{ env.CC_VERSION }}
+
+      - name: Download Cocos Creator
+        if: steps.cache-cc.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          curl.exe -L --retry 3 -o "$env:RUNNER_TEMP\cc.zip" $env:CC_URL
+          7z x "$env:RUNNER_TEMP\cc.zip" -oC:\cocos -y | Out-Null
+
+      - name: Locate editor
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem C:\cocos -Recurse -Filter CocosCreator.exe | Select-Object -First 1
+          if (-not $exe) { echo "C:\cocos 裡找不到 CocosCreator.exe：下載或解壓失敗"; exit 1 }
+          "CC_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
+
+      - name: Build web-mobile
+        shell: pwsh
+        working-directory: client
+        run: |
+          ../ci/cocos-build.ps1 -Config buildConfig_web.json -TimeoutMinutes 25
+          if (-not (Test-Path build\web-mobile\index.html)) { echo "web-mobile 構建沒有產出 index.html，見下面的構建日誌"; exit 1 }
+
+      - name: Show build logs
+        if: always()
+        shell: pwsh
+        working-directory: client
+        run: |
+          Get-ChildItem temp\builder -Recurse -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { echo "===== $($_.FullName)"; Get-Content $_.FullName -Tail 150 }
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: web-mobile
+          path: client/build/web-mobile
+          if-no-files-found: error
+
+  client-smoke:
+    needs: client-web
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-mobile
+          path: build/web-mobile
+
+      - name: Install harness
+        working-directory: harness
+        run: |
+          npm ci --no-audit --no-fund
+          npx playwright install --with-deps chromium
+
+      - name: Smoke test
+        working-directory: harness
+        run: node smoke.mjs ../build/web-mobile out
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke
+          path: harness/out
+
+  client-android:
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    needs: client-smoke
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Android NDK
+        shell: pwsh
+        run: |
+          $sdk = $env:ANDROID_HOME
+          if (-not $sdk) { $sdk = $env:ANDROID_SDK_ROOT }
+          $sm = Get-ChildItem "$sdk\cmdline-tools" -Recurse -Filter sdkmanager.bat | Select-Object -First 1
+          echo "y" | & $sm.FullName "ndk;$env:NDK_VERSION" "platforms;android-34" "build-tools;34.0.0" | Select-Object -Last 5
+          "ANDROID_SDK=$sdk" >> $env:GITHUB_ENV
+          "ANDROID_NDK=$sdk\ndk\$env:NDK_VERSION" >> $env:GITHUB_ENV
+
+      - name: Cache Cocos Creator
+        id: cache-cc
+        uses: actions/cache@v4
+        with:
+          path: C:\cocos
+          key: cocos-creator-win-${{ env.CC_VERSION }}
+
+      - name: Download Cocos Creator
+        if: steps.cache-cc.outputs.cache-hit != 'true'
+        shell: pwsh
+        run: |
+          curl.exe -L --retry 3 -o "$env:RUNNER_TEMP\cc.zip" $env:CC_URL
+          7z x "$env:RUNNER_TEMP\cc.zip" -oC:\cocos -y | Out-Null
+
+      - name: Locate editor & set preferences
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem C:\cocos -Recurse -Filter CocosCreator.exe | Select-Object -First 1
+          "CC_EXE=$($exe.FullName)" >> $env:GITHUB_ENV
+          $dir = "$env:USERPROFILE\.CocosCreator\profiles\v2\packages"
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+          $sdk = $env:ANDROID_SDK -replace '\\','/'
+          $ndk = $env:ANDROID_NDK -replace '\\','/'
+          $pref = [ordered]@{ __version__ = "1.0.1"; androidSDK = @{ path = $sdk; commandArgument = "" }; androidNDK = @{ path = $ndk; commandArgument = "" }; javaHome = @{ path = ($env:JAVA_HOME -replace '\\','/'); commandArgument = "" } }
+          Set-Content -Path "$dir\android.json" -Value ($pref | ConvertTo-Json -Depth 4)
+
+      - name: Build Android (Cocos)
+        shell: pwsh
+        working-directory: client
+        continue-on-error: true
+        run: |
+          ../ci/cocos-build.ps1 -Config buildConfig_android.json -TimeoutMinutes 50
+          Get-ChildItem build\android -ErrorAction SilentlyContinue
+
+      - name: Show build logs
+        if: always()
+        shell: pwsh
+        working-directory: client
+        run: |
+          Get-ChildItem temp\builder -Recurse -Filter *.log -ErrorAction SilentlyContinue | ForEach-Object { echo "===== $($_.FullName)"; Get-Content $_.FullName -Tail 120 }
+
+      - name: Gradle fallback (if editor did not produce an APK)
+        shell: pwsh
+        working-directory: client
+        run: |
+          $apk = Get-ChildItem build\android -Recurse -Filter *.apk -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($apk) { echo "APK already built: $($apk.FullName)"; exit 0 }
+          if (-not (Test-Path build\android\proj\gradlew.bat)) { echo "No gradle project was generated"; exit 1 }
+          Push-Location build\android\proj
+          $props = Get-Content gradle.properties
+          $ndk = $env:ANDROID_NDK -replace '\\','/'
+          $props = $props -replace '^PROP_NDK_PATH=.*', "PROP_NDK_PATH=$ndk"
+          Set-Content gradle.properties $props
+          "sdk.dir=$($env:ANDROID_SDK -replace '\\','/')" | Set-Content local.properties
+          .\gradlew.bat assembleRelease --no-daemon --stacktrace
+          Pop-Location
+
+      - name: Collect APK
+        shell: pwsh
+        working-directory: client
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          $apk = Get-ChildItem build\android -Recurse -Filter *.apk | Sort-Object Length -Descending | Select-Object -First 1
+          if (-not $apk) { echo "No APK found"; exit 1 }
+          Copy-Item $apk.FullName dist\FarmCocos.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: client/dist/*

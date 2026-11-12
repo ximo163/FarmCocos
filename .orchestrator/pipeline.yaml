@@ -16,7 +16,9 @@ protected:
   - legacy/            # 原版部署目錄（原樣）、manifest、反編譯結果、行為軌跡：只讀
   - spec/              # 規格（交互映射、偏差清單、協議）：由 pipeline:spec 提取、人審核
   - checks/            # 校驗腳本：人寫的驗收標準
-  - scripts/legacy/
+  - scripts/           # 反編譯、同步共用代碼等腳本：人管
+  - harness/           # 自動驗收（冒煙測試、Ruffle 運行器、比對）：驗收標準，agent 不能改
+  - ci/
   - deploy/            # 新服務端的部署配置（根目錄的 deploy/）：由人管
   - .github/
   - "*.md"             # 這個倉庫不寫給人看的文檔，計劃和文檔在 FarmCocos-docs
@@ -24,7 +26,16 @@ protected:
   - "**/*.prefab"
   - "**/*.scene"
   - client/settings/
-  - client/types/      # 從 Cocos 編輯器拷出的 cc 類型聲明
+  - client/types/      # Cocos 的類型聲明
+  - client/assets/scene/   # 空的啟動場景
+  - client/*.json      # Cocos 工程和構建配置
+
+# client 引用不了工程外的源碼，所以 packages/ 的共用代碼以生成副本的形式進入 client。
+# 每次 agent 運行結束後自動重新生成，agent 只改 packages/ 裡的源文件。
+generated:
+  paths: ["client/assets/scripts/shared/"]
+  how: "改 packages/<包>/src 下的源文件，然後運行 node scripts/sync-shared.mjs"
+  cmd: "node scripts/sync-shared.mjs"
 
 triage:
   model: judge

@@ -11,14 +11,17 @@
 |---|---|---|
 | `legacy/deploy/` | 原版部署目錄，**按真實部署結構原樣放置**：swf、PHP 後端（規則的權威來源）、xml、png、gif 混在其中 | 人，只讀 |
 | `legacy/manifest.json` | 部署目錄的說明：網站根目錄、PHP 入口、swf、配置、資源、建表 SQL、運行環境版本 | 人，只讀 |
-| `legacy/decompiled/<路徑>/` | FFDec 從 swf 導出的內容；`<路徑>` 對應 swf 在 `legacy/deploy/` 裡的位置，如 `deploy/www/game/main.swf` → `decompiled/www/game/main/`。裡面有 `scripts/`（ActionScript）、`sprites/` 和 `frames/`（逐幀 PNG）、圖片和聲音、`swf.xml`（全部標籤：幀標籤、PlaceObject）、`header.txt`（swf 版本、幀率、舞台尺寸）、`xfl/`（重建的 XFL，可能不完整） | 人用 `scripts/legacy/decompile.sh` 生成，只讀 |
+| `legacy/decompiled/<路徑>/` | FFDec 從 swf 導出的內容；`<路徑>` 對應 swf 在 `legacy/deploy/` 裡的位置，如 `deploy/www/game/main.swf` → `decompiled/www/game/main/`。裡面有 `scripts/`（ActionScript）、`sprites/` 和 `frames/`（逐幀 PNG）、圖片和聲音、`swf.xml`（全部標籤：幀標籤、PlaceObject）、`header.txt`（swf 版本、幀率、舞台尺寸）、`xfl/`（重建的 XFL，可能不完整） | 由 `scripts/decompile-legacy.sh` 生成，只讀 |
 | `legacy/traces/` | 錄下的原版行為軌跡（請求和響應、事件序列） | 人，只讀 |
 | `spec/` | 從 legacy 提取的規格：協議、作物數據、交互映射 `interaction-map.json`、偏差清單 `deviations.json` | `pipeline:spec` 提取、人審核；其他流水線只讀 |
-| `checks/` | 校驗腳本 | 人，只讀 |
+| `checks/`、`scripts/`、`ci/` | 校驗、反編譯、同步共用代碼、構建的腳本 | 人，只讀 |
+| `harness/` | 自動驗收：在無界面瀏覽器裡運行新客戶端和原版（Ruffle），截圖、錄請求、比對 | 人，只讀 |
+| `.github/workflows/` | 在 GitHub 上構建客戶端（網頁版、APK）並跑自動驗收 | 人，只讀 |
 | `packages/core/` | 純 TS 遊戲邏輯，客戶端和服務端共用 | agent |
 | `packages/<其他>/` | 其他能在容器裡測試的純 TS 包（時間軸播放器、手勢識別、佈局計算等表現層邏輯） | agent |
 | `server/` | Node 服務端：鑒權、存檔、運行 core、拉取外部數據 | agent |
-| `client/` | Cocos Creator 工程（由編輯器創建）；agent 只寫 `client/assets/scripts/` 下的 TS，而且只放薄膠水 | agent（腳本）、人（一個啟動場景、資源導入） |
+| `client/` | Cocos Creator 3.8.6 工程。手寫的骨架：一個空場景 `main.scene` 加啟動腳本 `Boot.ts`，沒有人會用編輯器打開它，構建在 GitHub 上完成。agent 只寫 `client/assets/scripts/` 下的 TS（薄膠水）和 `client/assets/resources/` 下的資源 | agent |
+| `client/assets/scripts/shared/` | `packages/*/src` 的生成副本，client 通過它引用共用代碼 | `scripts/sync-shared.mjs` 生成，不要手改 |
 | `tools/` | 轉換和比對工具（swf.xml → 時間軸 JSON、軌跡回放等） | agent |
 | `timelines/` | 時間軸數據：幀率、幀數、幀標籤、每幀事件、逐幀圖的引用（由 tools 從 `swf.xml` 生成） | 工具生成 |
 | `layouts/` | 界面佈局數據：每個界面的子元素、位置、層級（由 tools 從 `swf.xml` 的 PlaceObject 生成） | 工具生成 |
@@ -71,14 +74,22 @@
    不要還原補間、變換矩陣或嵌套剪輯，那等於重寫一個 Flash 渲染器。`timelines/*.json` 只記
    幀率、幀數、幀標籤、每幀事件和逐幀圖的引用。播放器用固定步長累加器
    （`acc += dt; while (acc >= 1/fps) step()`）保留「第 N 幀發生什麼」，不要改成秒或 tween。
-9. **界面由代碼按佈局數據生成**：`client/` 裡只有人建的一個啟動場景。所有界面在運行時由代碼按
-   `layouts/*.json` 創建節點，不依賴 prefab 或其他場景。不要手寫 `.meta`、`.prefab`、`.scene`
-   （受保護，由編輯器生成）；代碼按 `resources` 路徑引用資源。
+9. **界面由代碼按佈局數據生成**：`client/` 裡只有一個空場景 `main.scene`，`Boot.ts` 在場景啟動後
+   用代碼建立 Canvas 和相機。所有界面在運行時由代碼按 `layouts/*.json` 創建節點，不依賴 prefab
+   或其他場景。不要寫 `.meta`、`.prefab`、`.scene`（受保護）：新加的腳本和資源不用配 `.meta`，
+   GitHub 上構建時編輯器會自動生成。圖片、聲音放在 `client/assets/resources/` 下，代碼用
+   `resources.load` 按路徑加載。
 10. **client 只放薄膠水**：`client/assets/scripts/` 在容器裡編譯不了、測不了。有判斷的邏輯
     （手勢識別、佈局計算、播放器、狀態到畫面的映射）放在 `packages/` 下的純 TS 包裡並寫測試，
     client 腳本只負責把它們接到 Cocos 的節點和事件上。
-11. **client 怎麼引用 `packages/`** 由人確定後寫在這裡（目前未定）。在確定之前，需要 client
-    引用 `packages/` 的任務輸出 `BLOCKED: client 引用 packages 的方式未定`，不要把代碼複製進 client。
+11. **client 通過生成副本引用 `packages/`**：Cocos 工程只打包自己 `assets/` 下的腳本。
+    `scripts/sync-shared.mjs` 把 `packages/<包>/src` 同步到 `client/assets/scripts/shared/<包>/`，
+    流水線在每次 agent 運行後自動執行。client 腳本這樣引用：`import { X } from './shared/core/index'`。
+    只改 `packages/` 裡的源文件，不要手改 `shared/`。`packages/` 裡的包之間用相對路徑互相引用時，
+    要保證同步到 `shared/` 後路徑仍然成立（包和包之間用 `../../<包>/src/...` 這種寫法會斷，
+    需要跨包引用時先停下來說明）。
+12. **給自動化測試的掛鉤**：`Boot.ts` 把 `globalThis.__farm` 暴露給自動驗收（`ready`、`coreApi` 等）。
+    新界面和新狀態需要被自動驗收看到時，往這個對象上加只讀的字段，不要刪已有的字段。
 
 ## 隱私和密鑰
 
@@ -92,8 +103,11 @@
     npm test                     # vitest
     bash checks/core-purity.sh
     bash checks/manifest-valid.sh
+    node scripts/sync-shared.mjs --check   # client 裡的共用代碼副本和 packages/ 一致
 
-`client/` 由 Cocos 編輯器管理，不在 typecheck 範圍內；Cocos 構建在容器裡做不了。
+`client/` 不在 typecheck 範圍內，容器裡也構建不了 Cocos。它在 GitHub Actions 上構建
+（`.github/workflows/client.yml`）：`client-web` 構建網頁版，`client-smoke` 在無界面瀏覽器裡
+啟動它做冒煙測試。這兩個檢查失敗時，失敗日誌會交還給你。
 
 ## 風格
 
