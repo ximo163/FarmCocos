@@ -1,0 +1,8 @@
+node_modules/
+reports/
+# Cocos Creator 編輯器生成、不入庫的目錄
+client/library/
+client/temp/
+client/local/
+client/build/
+client/profiles/

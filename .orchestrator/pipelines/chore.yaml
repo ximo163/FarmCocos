@@ -1,0 +1,43 @@
+# pipeline:chore —— 腳手架、依賴、構建配置這類寫不出失敗測試的改動。
+version: 1
+base: main
+agent_dockerfile: agent.Dockerfile
+required_checks: []
+protected:
+  - legacy/
+  - spec/
+  - checks/
+  - scripts/legacy/
+  - .github/
+  - "*.md"
+  - "**/*.meta"
+  - "**/*.prefab"
+  - "**/*.scene"
+  - client/settings/
+  - client/types/
+cache: { npm_config_cache: npm }
+suites:
+  typecheck: { cmd: "npm ci --no-audit --no-fund --silent && npm run -s typecheck", timeout: 10m }
+  test: { cmd: "npm ci --no-audit --no-fund --silent && npm run -s test", timeout: 15m }
+  purity: { cmd: "bash checks/core-purity.sh", timeout: 2m }
+preflight: [typecheck, test]
+budget: { max_runs: 15, max_time: 4h }
+stages:
+  - id: implement
+    kind: agent
+    model: strong
+    prompt: prompts/chore.md
+    max_turns: 160
+    timeout: 60m
+    verify: [typecheck, purity, test]
+    ci: local
+    attempts: 4
+    escalate: { after: 2, models: [strong2] }
+  - id: review
+    kind: review
+    model: judge
+    prompt: prompts/review-chore.md
+    max_turns: 100
+    on_reject: implement
+    max_rejects: 4
+    escalate: { after: 2, models: [judge2] }

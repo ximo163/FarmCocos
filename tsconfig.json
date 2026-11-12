@@ -1,0 +1,17 @@
+{
+  // client/ 是 Cocos 工程，由編輯器生成自己的 tsconfig，不在這裡檢查
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "isolatedModules": true,
+    "skipLibCheck": true,
+    "noEmit": true
+  },
+  "include": ["packages/*/src", "packages/*/test", "server/src", "server/test", "tools/**/*.ts"]
+}

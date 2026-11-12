@@ -1,0 +1,103 @@
+# FarmCocos 默認流水線：移植一個模塊，先寫測試再實現。
+#
+#   write-tests (strong) -> review-tests (judge) -> implement (cheap) -> review-impl (judge)
+#
+# 寫不出失敗測試的任務走別的流水線，打對應標籤：
+#   pipeline:spec   從 legacy/ 提取規格到 spec/
+#   pipeline:chore  腳手架、依賴、配置
+#   pipeline:plan   大需求先拆分
+# 沒有 merge 階段：PR 全部由人合併，跑順之後再考慮自動合併。
+version: 1
+base: main
+agent_dockerfile: agent.Dockerfile
+required_checks: []    # 沒有 GitHub CI，本地 verify 就是驗證門
+
+protected:
+  - legacy/            # 原版資料（swf、php、xml、圖片、反編譯結果、行為軌跡）：只讀
+  - spec/              # 規格（交互映射、偏差清單、協議）：由 pipeline:spec 提取、人審核
+  - checks/            # 校驗腳本：人寫的驗收標準
+  - scripts/legacy/
+  - .github/
+  - "*.md"             # 這個倉庫不寫給人看的文檔，計劃和文檔在 FarmCocos-docs
+  - "**/*.meta"        # Cocos 編輯器生成
+  - "**/*.prefab"
+  - "**/*.scene"
+  - client/settings/
+  - client/types/      # 從 Cocos 編輯器拷出的 cc 類型聲明
+
+triage:
+  model: judge
+  max_files: 30
+  max_lines: 800
+  on_large: plan
+
+budget:
+  max_runs: 30
+  max_time: 8h
+max_jumps: 3
+
+cache:
+  npm_config_cache: npm
+
+suites:
+  typecheck: { cmd: "npm ci --no-audit --no-fund --silent && npm run -s typecheck", timeout: 10m }
+  test:
+    cmd: "npm ci --no-audit --no-fund --silent && npm run -s test:junit"
+    junit: reports/junit.xml
+    timeout: 15m
+  purity: { cmd: "bash checks/core-purity.sh", timeout: 2m }
+  # 以後加上（工具合併後再寫進來）：
+  #   replay:    node tools/replay.js legacy/traces          行為軌跡比對
+  #   timelines: node tools/check-timelines.js               時間軸 JSON 和 swf.xml 一致
+  #   refs:      node tools/check-refs.js                    引用的資源都存在、都有 .meta
+  #   legacy-diff: 對照 legacy/php 跑差分測試，需要 services（php、mysql）
+
+preflight: [typecheck, test]   # test 帶 junit，expect: fail 要用 preflight 的結果做基線
+
+stages:
+  - id: write-tests
+    kind: agent
+    model: strong
+    prompt: prompts/write-tests.md
+    max_turns: 160
+    timeout: 60m
+    verify:
+      - typecheck                       # 測試和 stub 能編譯
+      - purity
+      - { suite: test, expect: fail }   # 新測試在實現之前失敗
+    attempts: 4
+    escalate: { after: 2, models: [strong2] }
+
+  - id: review-tests
+    kind: review
+    model: judge
+    prompt: prompts/review-tests.md
+    max_turns: 120
+    on_reject: write-tests
+    max_rejects: 5
+    escalate: { after: 3, models: [judge2] }
+
+  - id: implement
+    kind: agent
+    model: cheap
+    prompt: prompts/implement.md
+    max_turns: 200
+    timeout: 60m
+    protect_since: write-tests
+    append_only: ["**/*.test.ts"]
+    protected: ["**/fixtures/"]
+    verify: [typecheck, purity, test]
+    ci: local
+    attempts: 4
+    escalate: { after: 2, models: [strong, strong2] }
+    on_exhausted: write-tests
+
+  - id: review-impl
+    kind: review
+    model: judge
+    prompt: prompts/review-impl.md
+    max_turns: 120
+    on_reject: implement
+    on_reject_tests: write-tests
+    max_rejects: 5
+    escalate: { after: 3, models: [judge2] }
