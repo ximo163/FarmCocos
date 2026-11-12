@@ -1,6 +1,6 @@
 # FarmCocos：給 agent 的工作規則
 
-這個倉庫把一個 Flash 種地遊戲（原版源碼已丟失，只剩 swf、PHP 後端、xml 和圖片資源）
+這個倉庫把一個 Flash 種地遊戲（原版源碼已丟失，只剩部署目錄：swf、PHP 後端、xml 和圖片資源）
 重寫成 Cocos Creator 客戶端（Android、PC）加 Node 服務端。開發由編排器流水線完成，
 你很可能就是其中一個 agent。計劃、設計和文檔不在這裡，在 `ximo163/FarmCocos-docs`；
 這個倉庫**不寫任何給人看的文檔**（README、docs/、*.md 都是受保護路徑）。
@@ -9,10 +9,9 @@
 
 | 路徑 | 內容 | 誰改 |
 |---|---|---|
-| `legacy/swf/` | 原版 swf | 人，只讀 |
-| `legacy/php/` | 原版 PHP 後端（作物、經驗、交易等規則的權威來源） | 人，只讀 |
-| `legacy/xml/`、`legacy/assets/` | 原版配置 xml、png、gif 等資源 | 人，只讀 |
-| `legacy/decompiled/<名字>/` | FFDec 從 swf 導出的 ActionScript、逐幀圖、`swf.xml`（時間軸） | 人用 `scripts/legacy/decompile.sh` 生成，只讀 |
+| `legacy/deploy/` | 原版部署目錄，**按真實部署結構原樣放置**：swf、PHP 後端（規則的權威來源）、xml、png、gif 混在其中 | 人，只讀 |
+| `legacy/manifest.json` | 部署目錄的說明：網站根目錄、PHP 入口、swf、配置、資源、建表 SQL、運行環境版本 | 人，只讀 |
+| `legacy/decompiled/<路徑>/` | FFDec 從 swf 導出的 ActionScript、逐幀圖、`swf.xml`（時間軸）；`<路徑>` 對應 swf 在 `legacy/deploy/` 裡的位置，如 `deploy/www/game/main.swf` → `decompiled/www/game/main/` | 人用 `scripts/legacy/decompile.sh` 生成，只讀 |
 | `legacy/traces/` | 錄下的原版行為軌跡（請求和響應、事件序列） | 人，只讀 |
 | `spec/` | 從 legacy 提取的規格：協議、作物數據、交互映射 `interaction-map.json`、偏差清單 `deviations.json` | `pipeline:spec` 提取、人審核；其他流水線只讀 |
 | `checks/` | 校驗腳本 | 人，只讀 |
@@ -22,15 +21,28 @@
 | `tools/` | 轉換和比對工具（swf.xml → 時間軸 JSON、軌跡回放等） | agent |
 | `timelines/` | 時間軸數據（由 tools 生成） | 工具生成 |
 
+## 讀原版之前：先讀 legacy/manifest.json
+
+`legacy/deploy/` 是原部署目錄的原樣副本，沒有按用途拆開，因為 PHP 的 include、swf 按相對 URL
+加載 xml 和圖片，這些引用都依賴原來的結構。
+
+- 先讀 `legacy/manifest.json`，從裡面找 PHP 入口、swf、配置 xml、資源和建表 SQL，不要在整個目錄裡盲搜。
+  manifest 裡的路徑都相對 `legacy/`。
+- 原版代碼裡的路徑按部署時的關係理解：PHP 的相對 include 相對於當前文件；swf 裡的相對 URL
+  相對於 swf 所在目錄的 URL；`web_root` 對應網站根 URL `/`。`notes` 裡記了不明顯的關係。
+- manifest 裡 `"placeholder": true` 表示部署目錄還沒放進來。需要原版依據的任務，最後一行輸出
+  `BLOCKED: legacy/deploy 尚未放入原部署目錄（manifest 是佔位）`。
+- 部署目錄裡的密碼、密鑰已被換成假值；不要嘗試恢復或猜測真實值。
+
 ## 原版行為就是需求
 
 - 除非 `spec/deviations.json` 裡列出，否則行為必須和原版一致：數值、公式、時序、
   請求和響應、動畫幀上觸發的事件。
-- 依據的優先順序：`legacy/traces/`（實際錄下的行為）> `legacy/php/`（服務端規則）>
-  `legacy/decompiled/`（客戶端腳本和時間軸）> `legacy/xml/`。互相矛盾時以前者為準，
+- 依據的優先順序：`legacy/traces/`（實際錄下的行為）> `legacy/deploy/` 裡的 PHP（服務端規則）>
+  `legacy/decompiled/`（客戶端腳本和時間軸）> `legacy/deploy/` 裡的 xml。互相矛盾時以前者為準，
   並在 PR 說明裡寫出矛盾之處。
 - 測試裡的每個期望值都要能指出出處：在測試上方用註釋寫明 legacy 裡的文件和位置
-  （如 `// legacy/php/crop.php: harvest() 第 120 行`）。
+  （如 `// legacy/deploy/www/api/crop.php: harvest() 第 120 行`）。
 - 規格裡找不到、legacy 裡也推不出來的行為，不要自己設計：最後一行輸出
   `BLOCKED: <缺什麼規格，在哪個文件遇到>`。
 
@@ -65,6 +77,7 @@
     npm run typecheck            # tsc，覆蓋 packages/、server/、tools/
     npm test                     # vitest
     bash checks/core-purity.sh
+    bash checks/manifest-valid.sh
 
 `client/` 由 Cocos 編輯器管理，不在 typecheck 範圍內；Cocos 構建在容器裡做不了。
 

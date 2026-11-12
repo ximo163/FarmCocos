@@ -1,0 +1,21 @@
+{
+  "version": 1,
+  "placeholder": true,
+  "web_root": null,
+  "server": {
+    "entries": [],
+    "include_roots": []
+  },
+  "client": {
+    "swf": []
+  },
+  "config_xml": [],
+  "assets": [],
+  "db_schema": [],
+  "runtime": {
+    "php": null,
+    "mysql": null,
+    "source": null
+  },
+  "notes": {}
+}

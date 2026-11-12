@@ -3,7 +3,7 @@
 以下任一成立就駁回：
 
 - 實現只對測試裡出現的輸入成立（硬編碼期望值、針對特定輸入的分支）。
-- 和原版行為不一致，且 `spec/deviations.json` 裡沒有列出。挑一兩處核心公式，自己對照 `legacy/php/` 或 `legacy/decompiled/` 核實。
+- 和原版行為不一致，且 `spec/deviations.json` 裡沒有列出。挑一兩處核心公式，自己對照 `legacy/deploy/` 裡的 PHP（位置見 `legacy/manifest.json`）或 `legacy/decompiled/` 核實。
 - 違反架構約定：core 裡出現 I/O、真實時間、隨機數或 `cc`；原始輸入事件進了 core；繞過 `GrowthDriver` 直接決定作物狀態；客戶端繞過 `GameService`；經驗或等級依賴了行情數據。
 - 觸屏交互不在 `spec/interaction-map.json` 裡，或和映射表的規定不一致。
 - 手寫了 `.meta`、`.prefab`、`.scene`，或在 client/ 裡改了腳本以外的東西。

@@ -13,7 +13,7 @@ agent_dockerfile: agent.Dockerfile
 required_checks: []    # 沒有 GitHub CI，本地 verify 就是驗證門
 
 protected:
-  - legacy/            # 原版資料（swf、php、xml、圖片、反編譯結果、行為軌跡）：只讀
+  - legacy/            # 原版部署目錄（原樣）、manifest、反編譯結果、行為軌跡：只讀
   - spec/              # 規格（交互映射、偏差清單、協議）：由 pipeline:spec 提取、人審核
   - checks/            # 校驗腳本：人寫的驗收標準
   - scripts/legacy/
@@ -46,13 +46,14 @@ suites:
     junit: reports/junit.xml
     timeout: 15m
   purity: { cmd: "bash checks/core-purity.sh", timeout: 2m }
+  manifest: { cmd: "bash checks/manifest-valid.sh", timeout: 2m }
   # 以後加上（工具合併後再寫進來）：
   #   replay:    node tools/replay.js legacy/traces          行為軌跡比對
   #   timelines: node tools/check-timelines.js               時間軸 JSON 和 swf.xml 一致
   #   refs:      node tools/check-refs.js                    引用的資源都存在、都有 .meta
-  #   legacy-diff: 對照 legacy/php 跑差分測試，需要 services（php、mysql）
+  #   legacy-diff: 對照 legacy/deploy 裡的舊後端跑差分測試，需要 services（php、mysql）
 
-preflight: [typecheck, test]   # test 帶 junit，expect: fail 要用 preflight 的結果做基線
+preflight: [manifest, typecheck, test]   # test 帶 junit，expect: fail 要用 preflight 的結果做基線
 
 stages:
   - id: write-tests

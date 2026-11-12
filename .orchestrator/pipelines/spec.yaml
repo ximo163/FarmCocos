@@ -8,6 +8,8 @@ protected: [legacy/, checks/, scripts/legacy/, .github/, "*.md"]
 cache: { npm_config_cache: npm }
 suites:
   spec: { cmd: "bash checks/spec-valid.sh", timeout: 2m }
+  manifest: { cmd: "bash checks/manifest-valid.sh", timeout: 2m }
+preflight: [manifest]
 budget: { max_runs: 12, max_time: 4h }
 stages:
   - id: extract
